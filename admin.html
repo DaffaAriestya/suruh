@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - UNESA Suruh</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = { theme: { extend: { colors: { unesa: { navy: '#003366', navyLight: '#004080', gold: '#FFC72C' } }, fontFamily: { sans: ['Inter', 'sans-serif'] } } } }
+    </script>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen">
+    <header class="bg-unesa-navy text-white shadow sticky top-0 z-30">
+        <div class="max-w-6xl mx-auto px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+                <div class="w-9 h-9 rounded-xl bg-unesa-gold text-unesa-navy flex items-center justify-center shrink-0"><i class="fa-solid fa-user-shield"></i></div>
+                <div class="min-w-0"><p class="font-extrabold leading-tight">UNESA <span class="text-unesa-gold">Suruh</span> Admin</p><p class="text-[11px] text-slate-300 truncate" id="adminName">Panel pengelola</p></div>
+            </div>
+            <a href="index.html" class="px-3 py-1.5 rounded-xl border border-unesa-gold/60 text-unesa-gold text-xs font-bold whitespace-nowrap hover:bg-unesa-gold/10"><i class="fa-solid fa-arrow-left mr-1"></i>Ke situs</a>
+        </div>
+        <nav id="tabs" class="hidden max-w-6xl mx-auto px-3 sm:px-6 pb-2 flex gap-1.5 overflow-x-auto"></nav>
+    </header>
+
+    <main id="content" class="max-w-6xl mx-auto p-3 sm:p-6 space-y-4"><p class="text-center text-sm text-slate-400 py-10">Memuat...</p></main>
+    <div id="dlg"></div>
+    <div id="toasts" class="fixed top-16 left-3 right-3 sm:left-auto sm:right-5 sm:w-96 space-y-2 pointer-events-none" style="z-index:2147483647"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const rp = n => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
+const BLN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+const when = s => { const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/); return m ? `${+m[3]} ${BLN[+m[2] - 1]} ${m[1]}, ${m[4]}:${m[5]}` : '-'; };
+const TABS = [['ringkasan', 'Ringkasan', 'fa-chart-pie'], ['mitra', 'Mitra', 'fa-id-card'], ['laporan', 'Laporan', 'fa-triangle-exclamation'],
+              ['penarikan', 'Penarikan', 'fa-wallet'], ['pesanan', 'Pesanan', 'fa-box'], ['pengguna', 'Pengguna', 'fa-users'], ['log', 'Riwayat', 'fa-clock-rotate-left']];
+let tab = 'ringkasan', stats = null;
+const filters = { mitra: 'Menunggu Verifikasi', laporan: 'Menunggu Review', penarikan: 'Diproses', pesanan: 'macet' };
+
+function toast(msg, type = 'ok') {
+    const d = document.createElement('div');
+    d.className = `p-3 rounded-xl border-2 shadow-xl text-xs font-bold pointer-events-auto ${type === 'ok' ? 'bg-emerald-700 text-white border-emerald-300' : 'bg-rose-700 text-white border-rose-300'}`;
+    d.textContent = msg; $('toasts').appendChild(d); setTimeout(() => d.remove(), type === 'ok' ? 3500 : 7000);
+}
+async function call(aksi, data = {}) {
+    let res, text;
+    try {
+        res = await fetch('admin_api.php', { method: 'POST', redirect: 'manual', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'UNESA-Suruh' }, body: JSON.stringify(Object.assign({ aksi }, data)) });
+        if (res.type === 'opaqueredirect' || (res.status >= 300 && res.status < 400)) return { ok: false, message: 'Hosting menolak/mengalihkan admin_api.php (403). Cek izin file 644 dan pastikan file sudah terupload.' };
+        text = await res.text();
+    } catch (e) { return { ok: false, message: 'Koneksi ke server terputus sesaat. Coba lagi.' }; }
+    try { const d = JSON.parse(text); return { ok: d.status === 'success', message: d.message || '', kode: d.kode, data: d }; }
+    catch (e) { return { ok: false, message: `Respons server tidak valid (HTTP ${res.status}). Pastikan admin_api.php terupload dan migrasi_v4.sql sudah dijalankan.` }; }
+}
+/** Dialog isian sederhana. fields: {key,label,type:'select'|'text',options:[[v,l]],required} */
+function ask({ title, text = '', fields = [], ok = 'Simpan' }) {
+    return new Promise(resolve => {
+        const w = $('dlg');
+        w.innerHTML = `<div class="fixed inset-0 bg-slate-900/70 flex items-center justify-center p-4" style="z-index:100"><form class="bg-white rounded-2xl w-full max-w-md p-5 space-y-3 shadow-2xl max-h-[92vh] overflow-y-auto">
+            <h3 class="font-extrabold text-sm text-unesa-navy">${esc(title)}</h3>${text ? `<p class="text-xs text-slate-500">${esc(text)}</p>` : ''}
+            ${fields.map((f, i) => `<div><label class="block text-[11px] font-bold uppercase text-slate-600 mb-1">${esc(f.label)}${f.required ? ' *' : ''}</label>${
+                f.type === 'select' ? `<select name="f${i}" class="w-full text-xs border border-slate-300 rounded-xl px-3 py-2.5 bg-white">${f.options.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('')}</select>`
+                : `<textarea name="f${i}" rows="3" ${f.required ? 'required' : ''} maxlength="480" class="w-full text-xs border border-slate-300 rounded-xl px-3 py-2.5"></textarea>`}</div>`).join('')}
+            <div class="flex justify-end gap-2 pt-1"><button type="button" data-x class="px-4 py-2 border rounded-xl text-xs font-bold text-slate-600">Batal</button><button class="px-5 py-2 bg-unesa-navy text-unesa-gold rounded-xl text-xs font-bold">${esc(ok)}</button></div></form></div>`;
+        const f = w.querySelector('form');
+        f.onsubmit = e => { e.preventDefault(); const v = {}; fields.forEach((fl, i) => v[fl.key] = f.elements['f' + i].value.trim()); w.innerHTML = ''; resolve(v); };
+        w.querySelector('[data-x]').onclick = () => { w.innerHTML = ''; resolve(null); };
+    });
+}
+const badge = (t, c) => `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${c}">${esc(t)}</span>`;
+const stClr = { 'Terverifikasi': 'bg-emerald-100 text-emerald-700', 'Menunggu Verifikasi': 'bg-amber-100 text-amber-800', 'Ditolak': 'bg-rose-100 text-rose-700',
+    'Menunggu Tawaran': 'bg-amber-100 text-amber-800', 'Diproses': 'bg-blue-100 text-blue-700', 'Selesai': 'bg-emerald-100 text-emerald-700', 'Dibatalkan': 'bg-slate-200 text-slate-600',
+    'Menunggu Review': 'bg-amber-100 text-amber-800' };
+const sBadge = s => badge(s, stClr[s] || 'bg-slate-100 text-slate-600');
+const card = h => `<div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-2 text-xs">${h}</div>`;
+const btn = (label, attrs, cls) => `<button ${attrs} class="px-3 py-1.5 rounded-xl font-bold text-xs ${cls}">${label}</button>`;
+const empty = t => `<div class="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-400 text-sm">${esc(t)}</div>`;
+const filterBar = (key, opts, extra = '') => `<div class="flex flex-wrap items-center gap-2"><select data-filter="${key}" class="text-xs font-bold border border-slate-300 rounded-xl px-3 py-2 bg-white">${opts.map(([v, l]) => `<option value="${esc(v)}" ${filters[key] === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>${extra}</div>`;
+const phone = n => n ? `<span class="text-slate-500">📞 ${esc(n)}</span>` : '';
+
+function renderTabs() {
+    $('tabs').classList.remove('hidden');
+    $('tabs').innerHTML = TABS.map(([id, label, icon]) => {
+        const n = id === 'mitra' ? stats?.mitra_menunggu : id === 'laporan' ? stats?.laporan_menunggu : id === 'penarikan' ? stats?.tarik_menunggu : 0;
+        return `<button data-tab="${id}" class="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold ${tab === id ? 'bg-unesa-gold text-unesa-navy' : 'bg-white/10 text-white hover:bg-white/20'}"><i class="fa-solid ${icon} mr-1"></i>${label}${n ? ` <span class="ml-1 bg-rose-500 text-white rounded-full px-1.5 text-[10px]">${n}</span>` : ''}</button>`;
+    }).join('');
+}
+function gate(msg, extra = '') { $('tabs').classList.add('hidden'); $('content').innerHTML = `<div class="max-w-md mx-auto bg-white rounded-2xl border border-slate-200 p-6 text-center space-y-3"><i class="fa-solid fa-lock text-3xl text-slate-300"></i><p class="font-bold text-sm">${esc(msg)}</p>${extra}<a href="index.html" class="inline-block px-4 py-2 bg-unesa-navy text-unesa-gold rounded-xl text-xs font-bold">Buka halaman utama</a></div>`; }
+
+async function load() {
+    renderTabs();
+    $('content').innerHTML = '<p class="text-center text-sm text-slate-400 py-10"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Memuat...</p>';
+    const r = await call('stats');
+    if (!r.ok) {
+        if (r.kode === 'belum_login') return gate('Masuk dulu dengan akun admin di halaman utama, lalu kembali ke sini.');
+        if (r.kode === 'bukan_admin') return gate('Akun ini bukan admin.', `<p class="text-[11px] text-slate-500 text-left bg-slate-50 rounded-xl p-3">Jadikan akunmu admin lewat phpMyAdmin (tab SQL):<br><code class="text-[11px]">UPDATE users SET is_admin = 1 WHERE email = 'emailmu@mhs.unesa.ac.id';</code></p>`);
+        return gate(r.message || 'Gagal memuat panel admin.');
+    }
+    stats = r.data.stats; renderTabs();
+    const v = { ringkasan: vRingkasan, mitra: vMitra, laporan: vLaporan, penarikan: vPenarikan, pesanan: vPesanan, pengguna: vPengguna, log: vLog }[tab];
+    await v();
+}
+async function list(aksi, data) {
+    const r = await call(aksi, data);
+    if (!r.ok) { $('content').innerHTML = empty(r.message || 'Gagal memuat data.'); return null; }
+    return r.data.rows;
+}
+
+async function vRingkasan() {
+    const s = stats, P = s.pesanan || {};
+    const box = (l, v, c = 'text-unesa-navy', sub = '') => `<div class="bg-white rounded-2xl border border-slate-200 p-4"><p class="text-[11px] font-bold text-slate-400 uppercase">${l}</p><p class="text-2xl font-extrabold ${c}">${v}</p>${sub ? `<p class="text-[11px] text-slate-400">${sub}</p>` : ''}</div>`;
+    $('content').innerHTML = `<div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        ${box('Pengguna', s.pengguna)}${box('Mitra', s.mitra, 'text-emerald-700', s.mitra_menunggu + ' menunggu verifikasi')}
+        ${box('Laporan terbuka', s.laporan_menunggu, s.laporan_menunggu ? 'text-rose-600' : 'text-slate-700')}${box('Penarikan diproses', s.tarik_menunggu, s.tarik_menunggu ? 'text-amber-600' : 'text-slate-700')}
+        ${box('SOS terbuka', s.sos_menunggu || 0, s.sos_menunggu ? 'text-rose-600' : 'text-slate-700', 'darurat belum ditangani')}
+        ${box('Tugas macet', s.macet, s.macet ? 'text-rose-600' : 'text-slate-700', 'tanpa kemajuan > ' + s.stale_jam + ' jam')}
+        ${box('Nilai transaksi', rp(s.nilai_transaksi), 'text-emerald-700', 'simulasi')}${box('Dikembalikan', rp(s.dikembalikan), 'text-slate-700', 'simulasi')}
+        ${box('Pesanan selesai', P['Selesai'] || 0, 'text-emerald-700')}</div>
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 text-xs"><p class="font-bold mb-2">Pesanan menurut status</p><div class="flex flex-wrap gap-2">${['Menunggu Tawaran', 'Diproses', 'Selesai', 'Dibatalkan'].map(k => `<span>${sBadge(k)} <strong>${P[k] || 0}</strong></span>`).join('')}</div></div>`;
+}
+async function vMitra() {
+    const rows = await list('providers', { filter: filters.mitra }); if (!rows) return;
+    $('content').innerHTML = filterBar('mitra', [['Menunggu Verifikasi', 'Menunggu verifikasi'], ['Terverifikasi', 'Terverifikasi'], ['Ditolak', 'Ditolak'], ['all', 'Semua']]) +
+        (rows.length ? rows.map(p => card(`<div class="flex flex-wrap items-start justify-between gap-2"><div><p class="font-extrabold text-sm">${esc(p.Nama)} ${sBadge(p.Status_verifikasi)} ${p.Status_akun === 'ditangguhkan' ? badge('Ditangguhkan', 'bg-rose-100 text-rose-700') : ''}</p>
+            <p class="text-slate-500">NIM ${esc(p.NIM)} · ${esc(p.Fakultas)} · Kampus ${esc(p.Area_kerja)}</p><p class="text-slate-500">${esc(p.email)} ${phone(p.NO_hp)}</p>
+            <p class="text-slate-500">⭐ ${Number(p.Rating).toFixed(1)} · ${p.Total_order_selesai} selesai · ${p.Total_mundur} kali mundur · ${Number(p.is_online) ? 'ON' : 'OFF'}</p>
+            ${p.Catatan_verifikasi ? `<p class="text-rose-600 italic">Catatan: ${esc(p.Catatan_verifikasi)}</p>` : ''}</div>
+            ${p.id_photo_ktm ? `<a href="photo.php?id=${Number(p.id_photo_ktm)}" target="_blank" rel="noopener"><img src="photo.php?id=${Number(p.id_photo_ktm)}" alt="KTM" class="w-32 h-20 object-cover rounded-xl border"></a>` : '<span class="text-slate-400 italic">KTM belum diunggah</span>'}</div>
+            <div class="flex flex-wrap gap-2">${p.Status_verifikasi !== 'Terverifikasi' ? btn('Verifikasi', `data-act="prov" data-id="${p.id_provider}" data-status="Terverifikasi"`, 'bg-emerald-600 text-white') : ''}
+            ${p.Status_verifikasi !== 'Ditolak' ? btn('Tolak', `data-act="prov" data-id="${p.id_provider}" data-status="Ditolak"`, 'bg-rose-600 text-white') : ''}</div>`)).join('') : empty('Tidak ada Mitra pada filter ini.'));
+}
+const KEPUTUSAN = [['tolak', 'Tolak laporan (tanpa tindakan)'], ['peringatan', 'Beri tanggapan / peringatan saja'], ['refund', 'Batalkan / kembalikan pembayaran pemesan'], ['selesaikan', 'Selesaikan paksa tugas (Mitra dibayar)']];
+async function vLaporan() {
+    const rows = await list('reports', { filter: filters.laporan }); if (!rows) return;
+    $('content').innerHTML = filterBar('laporan', [['Menunggu Review', 'Belum ditangani'], ['Selesai', 'Sudah ditangani'], ['all', 'Semua']]) +
+        (rows.length ? rows.map(r => card(`<div class="flex flex-wrap items-center justify-between gap-2"><p class="font-mono font-bold text-rose-700">${Number(r.Darurat) ? badge('DARURAT (SOS)', 'bg-rose-600 text-white') + ' ' : ''}Laporan #${r.id_report} · ${esc(r.id_Orders)}</p>${sBadge(r.Status)}${r.Lat ? ` <a class="text-unesa-navy underline font-bold" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${Number(r.Lat)},${Number(r.Lng)}">Lihat posisi</a>` : ''}</div>
+            <p class="font-bold text-sm">${esc(r.Judul)} ${sBadge(r.status_order)}</p>
+            <p>Pelapor: <strong>${esc(r.pelapor_nama)}</strong> ${phone(r.pelapor_hp)}</p>
+            <p class="text-slate-500">Pemesan: ${esc(r.pemesan_nama)} ${phone(r.pemesan_hp)} · Mitra: ${esc(r.mitra_nama || '-')} ${phone(r.mitra_hp)}</p>
+            <p class="bg-slate-50 rounded-xl p-3 text-slate-700 whitespace-pre-line">${esc(r.Alasan)}</p>
+            ${r.id_photo ? `<a href="photo.php?id=${Number(r.id_photo)}" target="_blank" rel="noopener"><img src="photo.php?id=${Number(r.id_photo)}" class="w-32 h-24 object-cover rounded-xl border" alt="Bukti"></a>` : ''}
+            <p class="text-[10px] text-slate-400 font-mono">${when(r.created_at)}</p>
+            ${r.Status === 'Selesai' ? `<p class="bg-emerald-50 border border-emerald-200 rounded-xl p-3"><strong>Keputusan: ${esc((KEPUTUSAN.find(k => k[0] === r.Keputusan) || [0, r.Keputusan])[1])}</strong><br>${esc(r.Catatan_admin)}<br><span class="text-[10px] text-slate-400">${when(r.Ditangani_pada)}</span></p>`
+              : btn('Tangani laporan', `data-act="rep" data-id="${r.id_report}"`, 'bg-unesa-navy text-unesa-gold')}`)).join('') : empty('Tidak ada laporan pada filter ini.'));
+}
+async function vPenarikan() {
+    const rows = await list('withdrawals', { filter: filters.penarikan }); if (!rows) return;
+    $('content').innerHTML = filterBar('penarikan', [['Diproses', 'Menunggu diproses'], ['Selesai', 'Selesai'], ['Ditolak', 'Ditolak'], ['all', 'Semua']]) +
+        (rows.length ? rows.map(w => card(`<div class="flex flex-wrap items-center justify-between gap-2"><p class="font-extrabold text-sm">${rp(w.Jumlah)} → ${esc(w.Metode)} ${esc(w.Tujuan)}</p>${sBadge(w.Status)}</div>
+            <p class="text-slate-500">${esc(w.Nama)} · NIM ${esc(w.NIM)} · ${esc(w.email)}</p><p class="text-[10px] text-slate-400 font-mono">${when(w.created_at)}</p>
+            ${w.Catatan_admin ? `<p class="italic text-slate-600">Catatan: ${esc(w.Catatan_admin)}</p>` : ''}
+            ${w.Status === 'Diproses' ? `<div class="flex gap-2">${btn('Tandai sudah dibayar', `data-act="wd" data-id="${w.id_withdraw}" data-status="Selesai"`, 'bg-emerald-600 text-white')}${btn('Tolak (saldo kembali)', `data-act="wd" data-id="${w.id_withdraw}" data-status="Ditolak"`, 'bg-rose-600 text-white')}</div>` : ''}`)).join('') : empty('Tidak ada permintaan penarikan.'));
+}
+async function vPesanan() {
+    const q = $('qPesanan')?.value ?? '';
+    const rows = await list('orders', { filter: filters.pesanan, q }); if (!rows) return;
+    $('content').innerHTML = filterBar('pesanan', [['macet', 'Tugas macet'], ['Diproses', 'Sedang berjalan'], ['Menunggu Tawaran', 'Menunggu tawaran'], ['Selesai', 'Selesai'], ['Dibatalkan', 'Dibatalkan'], ['all', 'Semua']],
+        `<input id="qPesanan" value="${esc(q)}" placeholder="Cari ID / judul / pemesan" class="flex-1 min-w-[160px] text-xs border border-slate-300 rounded-xl px-3 py-2"><button data-act="cari" class="px-3 py-2 bg-unesa-navy text-unesa-gold rounded-xl text-xs font-bold">Cari</button>`) +
+        (rows.length ? rows.map(o => card(`<div class="flex flex-wrap items-center justify-between gap-2"><p class="font-mono font-bold text-unesa-navy">${esc(o.id_Orders)}</p><div class="flex gap-1.5">${Number(o.macet) ? badge('MACET', 'bg-rose-600 text-white') : ''}${sBadge(o.status_order)}</div></div>
+            <p class="font-bold text-sm">${esc(o.Judul)}</p>
+            <p class="text-slate-500">Pemesan: ${esc(o.pemesan_nama)} ${phone(o.pemesan_hp)}${o.mitra_nama ? ` · Mitra: ${esc(o.mitra_nama)} ${phone(o.mitra_hp)}` : ''}</p>
+            <p class="text-slate-500">Tarif ${rp(o.Harga_final || o.Harga_diajukan)} · tahap ${o.progress}/4 · dibuat ${when(o.created_at)} · aktivitas terakhir ${when(o.updated_at)}</p>
+            ${o.Alasan_batal ? `<p class="italic text-slate-600">Dibatalkan (${esc(o.Dibatalkan_oleh)}): ${esc(o.Alasan_batal)}</p>` : ''}
+            ${o.status_order === 'Diproses' ? `<div class="flex flex-wrap gap-2">${btn('Batalkan & kembalikan', `data-act="force" data-id="${esc(o.id_Orders)}" data-t="batal_refund"`, 'bg-rose-600 text-white')}${btn('Selesaikan paksa', `data-act="force" data-id="${esc(o.id_Orders)}" data-t="selesaikan"`, 'bg-emerald-600 text-white')}</div>` : ''}`)).join('') : empty('Tidak ada pesanan pada filter ini.'));
+}
+async function vPengguna() {
+    const q = $('qUser')?.value ?? '';
+    const rows = await list('users', { q }); if (!rows) return;
+    $('content').innerHTML = `<div class="flex gap-2"><input id="qUser" value="${esc(q)}" placeholder="Cari nama / email / HP" class="flex-1 text-xs border border-slate-300 rounded-xl px-3 py-2"><button data-act="cariUser" class="px-3 py-2 bg-unesa-navy text-unesa-gold rounded-xl text-xs font-bold">Cari</button></div>` +
+        (rows.length ? rows.map(u => card(`<div class="flex flex-wrap items-center justify-between gap-2"><p class="font-extrabold text-sm">${esc(u.Nama)} ${Number(u.is_admin) ? badge('Admin', 'bg-unesa-navy text-unesa-gold') : ''} ${Number(u.is_mitra) ? badge('Mitra', 'bg-emerald-100 text-emerald-700') : ''} ${u.Status_akun === 'ditangguhkan' ? badge('Ditangguhkan', 'bg-rose-100 text-rose-700') : ''}</p>
+            <p class="text-[10px] text-slate-400 font-mono">${when(u.created_at)}</p></div><p class="text-slate-500">${esc(u.email)} ${phone(u.NO_hp)} · ${u.jumlah_pesanan} pesanan</p>
+            ${Number(u.is_admin) ? '' : btn(u.Status_akun === 'ditangguhkan' ? 'Aktifkan kembali' : 'Tangguhkan akun', `data-act="user" data-id="${u.id_user}" data-status="${u.Status_akun === 'ditangguhkan' ? 'aktif' : 'ditangguhkan'}"`, u.Status_akun === 'ditangguhkan' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white')}`)).join('') : empty('Pengguna tidak ditemukan.'));
+}
+async function vLog() {
+    const rows = await list('log'); if (!rows) return;
+    $('content').innerHTML = rows.length ? `<div class="bg-white rounded-2xl border border-slate-200 divide-y text-xs">${rows.map(l => `<div class="p-3"><p><strong>${esc(l.Aksi)}</strong> · ${esc(l.Target)} <span class="text-slate-400">oleh ${esc(l.admin_nama || '-')}</span></p><p class="text-slate-500">${esc(l.Detail || '')}</p><p class="text-[10px] text-slate-400 font-mono">${when(l.created_at)}</p></div>`).join('')}</div>` : empty('Belum ada tindakan admin.');
+}
+
+async function act(label, aksi, data) {
+    const r = await call(aksi, data);
+    if (!r.ok) { toast(r.message || 'Gagal.', 'err'); return false; }
+    toast(label); await load(); return true;
+}
+const handlers = {
+    async prov(d) {
+        const rejected = d.status === 'Ditolak';
+        const v = await ask({ title: rejected ? 'Tolak verifikasi Mitra' : 'Verifikasi Mitra', text: rejected ? 'Tulis alasan agar Mitra bisa memperbaiki dan mengirim ulang KTM.' : 'Mitra akan bisa menerima suruhan.', fields: [{ key: 'catatan', label: 'Catatan', type: 'text', required: rejected }], ok: rejected ? 'Tolak' : 'Verifikasi' });
+        if (v) act('Status Mitra diperbarui.', 'provider_set', { id_provider: +d.id, status: d.status, catatan: v.catatan });
+    },
+    async rep(d) {
+        const v = await ask({ title: 'Tangani laporan #' + d.id, text: 'Keputusan dikirim ke chat pesanan dan terlihat oleh pelapor.', fields: [{ key: 'keputusan', label: 'Keputusan', type: 'select', options: KEPUTUSAN }, { key: 'catatan', label: 'Catatan untuk pelapor', type: 'text', required: true }], ok: 'Putuskan' });
+        if (v) act('Laporan ditangani.', 'report_resolve', { id_report: +d.id, keputusan: v.keputusan, catatan: v.catatan });
+    },
+    async wd(d) {
+        const rejected = d.status === 'Ditolak';
+        const v = await ask({ title: rejected ? 'Tolak penarikan' : 'Tandai penarikan selesai', text: rejected ? 'Saldo otomatis kembali ke Mitra.' : 'Pastikan dana sudah dikirim ke e-wallet tujuan.', fields: [{ key: 'catatan', label: 'Catatan', type: 'text', required: rejected }], ok: 'Simpan' });
+        if (v) act('Penarikan diperbarui.', 'withdrawal_set', { id_withdraw: +d.id, status: d.status, catatan: v.catatan });
+    },
+    async force(d) {
+        const cancel = d.t === 'batal_refund';
+        const v = await ask({ title: cancel ? 'Batalkan & kembalikan pembayaran' : 'Selesaikan paksa tugas', text: cancel ? 'Pesanan dibatalkan dan pembayaran pemesan dikembalikan (simulasi).' : 'Tugas ditutup dan imbalan Mitra masuk saldo.', fields: [{ key: 'catatan', label: 'Alasan', type: 'text', required: true }], ok: 'Lakukan' });
+        if (v) act('Tindakan dijalankan.', 'order_force', { id_orders: d.id, tindakan: d.t, catatan: v.catatan });
+    },
+    async user(d) {
+        const susp = d.status === 'ditangguhkan';
+        const v = await ask({ title: susp ? 'Tangguhkan akun' : 'Aktifkan akun', text: susp ? 'Pengguna langsung keluar dan tidak bisa masuk lagi.' : '', fields: [{ key: 'catatan', label: 'Alasan', type: 'text', required: susp }], ok: 'Simpan' });
+        if (v) act('Akun diperbarui.', 'user_set', { id_user: +d.id, status: d.status, catatan: v.catatan });
+    },
+    cari() { load(); }, cariUser() { load(); }
+};
+document.addEventListener('click', e => {
+    const t = e.target.closest('[data-tab]'); if (t) { tab = t.dataset.tab; load(); return; }
+    const b = e.target.closest('[data-act]'); if (b && handlers[b.dataset.act]) handlers[b.dataset.act](b.dataset);
+});
+document.addEventListener('change', e => { const f = e.target.closest('[data-filter]'); if (f) { filters[f.dataset.filter] = f.value; load(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.target.id === 'qPesanan' || e.target.id === 'qUser')) load(); });
+load();
+</script>
+</body>
+</html>

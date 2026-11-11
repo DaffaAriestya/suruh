@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="id" class="overflow-x-hidden">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>UNESA Suruh - Ekosistem Jasa Suruh Mahasiswa UNESA</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Tailwind Custom Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                screens: {
+                    'xs': '380px',
+                    'sm': '640px',
+                    'md': '768px',
+                    'lg': '1024px',
+                    'xl': '1280px',
+                },
+                extend: {
+                    colors: {
+                        unesa: {
+                            navy: '#003366',
+                            navyLight: '#004080',
+                            navyDark: '#002244',
+                            gold: '#FFC72C',
+                            goldHover: '#e6b022',
+                            bg: '#F8FAFC'
+                        },
+                        mitra: {
+                            emerald: '#059669',
+                            emeraldDark: '#047857',
+                            bg: '#F0FDF4'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- External CSS Styles -->
+    <!-- Leaflet (peta OpenStreetMap, gratis tanpa API key) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col selection:bg-amber-300 selection:text-unesa-navy overflow-x-hidden w-full relative">
+
+    <!-- HEADER + NAVIGASI (satu blok sticky agar tidak saling menimpa di HP) -->
+    <div class="sticky top-0 z-40 w-full">
+    <header class="bg-unesa-navy text-white shadow-md w-full">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2 sm:py-0">
+            <div class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-x-2 gap-y-2 sm:h-16">
+
+                <!-- Logo & Branding -->
+                <div class="order-1 flex items-center space-x-2 sm:space-x-3 cursor-pointer min-w-0" onclick="switchTab('landing')">
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-unesa-gold flex items-center justify-center text-unesa-navy font-black text-lg sm:text-xl shadow-md shrink-0">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg sm:text-xl font-extrabold tracking-tight text-white whitespace-nowrap">UNESA <span class="text-unesa-gold">Suruh</span></span>
+                            <span id="roleIndicatorBadge" class="hidden md:inline-block text-[10px] bg-amber-400/20 text-amber-300 border border-amber-400/30 px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap">Portal Pemesan</span>
+                        </div>
+                        <p class="text-[11px] text-slate-300 hidden md:block truncate">Ketintang • Lidah Wetan • Magetan</p>
+                    </div>
+                </div>
+
+                <!-- Akun: Masuk / Daftar atau profil -->
+                <div class="order-2 sm:order-3 flex items-center shrink-0">
+                    <div id="authUserState" class="hidden flex items-center space-x-2 pl-2 sm:pl-3 sm:border-l border-slate-700">
+                        <img id="userAvatarNav" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" class="w-8 h-8 rounded-full object-cover border-2 border-unesa-gold shrink-0 bg-slate-700" alt="Foto profil">
+                        <div class="text-left text-xs hidden md:block max-w-[140px]">
+                            <p id="userNameNav" class="font-bold text-white truncate"></p>
+                            <p id="userRoleNav" class="text-[10px] text-unesa-gold truncate"></p>
+                        </div>
+                        <a id="adminLink" href="admin.html" class="hidden px-2.5 py-1 rounded-lg bg-unesa-gold text-unesa-navy text-[11px] font-bold whitespace-nowrap"><i class="fa-solid fa-user-shield mr-1"></i>Admin</a>
+                        <button onclick="handleLogout()" title="Keluar akun" class="p-1.5 text-slate-300 hover:text-rose-400 transition shrink-0">
+                            <i class="fa-solid fa-right-from-bracket text-sm"></i>
+                        </button>
+                    </div>
+                    <div id="authGuestState" class="flex items-center space-x-2">
+                        <button onclick="openLoginModal()" class="px-3 py-1.5 rounded-xl border border-unesa-gold/60 text-unesa-gold text-xs font-bold hover:bg-unesa-gold/10 transition whitespace-nowrap">Masuk</button>
+                        <button onclick="openRegisterModal()" class="px-3 py-1.5 rounded-xl bg-unesa-gold text-unesa-navy text-xs font-bold hover:bg-unesa-goldHover shadow transition whitespace-nowrap">Daftar</button>
+                    </div>
+                </div>
+
+                <!-- Pilihan peran: baris sendiri di HP, sejajar di layar lebar -->
+                <div class="order-3 sm:order-2 w-full sm:w-auto sm:ml-auto bg-slate-900/90 p-1 rounded-xl flex items-center border border-slate-700">
+                    <button id="btnRolePemesan" onclick="setRole('pemesan')" class="flex-1 px-3 py-1.5 sm:px-4 rounded-lg text-xs font-bold transition-all duration-200 whitespace-nowrap text-center bg-unesa-gold text-unesa-navy shadow">
+                        <i class="fa-solid fa-user-pen mr-1"></i>Pemesan
+                    </button>
+                    <button id="btnRoleMitra" onclick="setRole('mitra')" class="flex-1 px-3 py-1.5 sm:px-4 rounded-lg text-xs font-bold transition-all duration-200 whitespace-nowrap text-center text-slate-300 hover:text-white">
+                        <i class="fa-solid fa-handshake mr-1"></i>Mitra Suruh
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </header>
+
+    <!-- NAVIGATION TABS BAR -->
+    <nav id="navBarContainer" class="bg-white border-b border-slate-200 shadow-sm w-full overflow-hidden">
+        <div class="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+            <div id="navTabsList" class="flex space-x-1 sm:space-x-2 overflow-x-auto no-scrollbar-mobile custom-scrollbar py-2 text-xs sm:text-sm font-bold text-slate-600 scroll-smooth">
+                <!-- Navigation tabs inserted dynamically via JavaScript -->
+            </div>
+        </div>
+    </nav>
+    </div>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 flex-grow w-full overflow-x-hidden">
+
+
+        <!-- ========================================== -->
+        <!-- VIEW 0: LANDING PAGE KHUSUS INFORMASI UNESA SURUH -->
+        <!-- ========================================== -->
+        <section id="view-landing" class="tab-content space-y-8 sm:space-y-12">
+            
+            <!-- Hero Banner -->
+            <div class="relative overflow-hidden bg-gradient-to-br from-unesa-navy via-unesa-navyLight to-slate-900 text-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 md:p-12 shadow-xl border border-slate-700">
+                <div class="absolute -right-16 -bottom-16 w-60 sm:w-80 h-60 sm:h-80 bg-unesa-gold/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-center">
+                    
+                    <div class="lg:col-span-7 space-y-4 sm:space-y-5">
+                        <div class="inline-flex items-center space-x-2 bg-amber-400/20 text-amber-300 border border-amber-400/30 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-bold">
+                            <i class="fa-solid fa-shield-halved shrink-0"></i>
+                            <span>Khusus Civitas Akademika UNESA</span>
+                        </div>
+                        
+                        <h1 class="text-2xl sm:text-4xl md:text-5xl font-black text-white leading-tight">
+                            Solusi Suruh-Menyuruh Antar <span class="text-unesa-gold">Mahasiswa UNESA</span>
+                        </h1>
+                        
+                        <p class="text-xs sm:text-sm md:text-base text-slate-300 leading-relaxed max-w-2xl">
+                            Titip makanan kantin, print skripsi & tugas, kirim dokumen antar fakultas, hingga bantuan khusus kampus. Dikerjakan langsung oleh <strong>Mitra Suruh Mahasiswa UNESA</strong> yang amanah & terverifikasi.
+                        </p>
+
+                        <div class="flex flex-col xs:flex-row items-stretch xs:items-center gap-2.5 sm:gap-3 pt-2">
+                            <button onclick="handleStartOrderCTA()" class="px-5 py-3 bg-unesa-gold hover:bg-unesa-goldHover text-unesa-navy rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm shadow-lg transition flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-cart-plus text-sm sm:text-base"></i>
+                                <span>Buat Suruhan Sekarang</span>
+                            </button>
+                            <button onclick="handleBecomeMitraCTA()" class="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm shadow-lg transition flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-handshake text-sm sm:text-base"></i>
+                                <span>Gabung Mitra Suruh</span>
+                            </button>
+                        </div>
+
+                        <!-- Campus Coverage Badges -->
+                        <div class="pt-2 sm:pt-4 flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-slate-300">
+                            <span class="font-bold text-amber-300 w-full xs:w-auto mb-1 xs:mb-0">Coverage Area Kampus:</span>
+                            <span class="bg-white/10 px-2.5 py-1 rounded-lg border border-white/10 whitespace-nowrap">📍 Ketintang</span>
+                            <span class="bg-white/10 px-2.5 py-1 rounded-lg border border-white/10 whitespace-nowrap">📍 Lidah Wetan</span>
+                            <span class="bg-white/10 px-2.5 py-1 rounded-lg border border-white/10 whitespace-nowrap">📍 Magetan</span>
+                        </div>
+                    </div>
+
+                    <!-- Hero Card Visual -->
+                    <div class="lg:col-span-5 bg-white/10 backdrop-blur-md p-4 sm:p-6 rounded-2xl border border-white/20 shadow-2xl space-y-3 sm:space-y-4 w-full">
+                        <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-3 h-3 rounded-full bg-rose-500"></div>
+                                <div class="w-3 h-3 rounded-full bg-amber-400"></div>
+                                <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
+                            </div>
+                            <span class="text-[10px] font-mono text-amber-300 font-bold uppercase">Suruhan Real-time</span>
+                        </div>
+
+                        <div class="space-y-2.5 sm:space-y-3">
+                            <div class="bg-white/10 p-2.5 sm:p-3 rounded-xl border border-white/10 flex items-center justify-between text-xs gap-2">
+                                <div class="flex items-center space-x-2.5 min-w-0">
+                                    <div class="w-8 h-8 rounded-lg bg-amber-400 text-unesa-navy flex items-center justify-center font-bold shrink-0">
+                                        <i class="fa-solid fa-utensils"></i>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="font-bold text-white truncate">Nasi Ayam Geprek Kantin</p>
+                                        <p class="text-[10px] text-slate-300 truncate">Ketintang ➔ FT Gedung A1</p>
+                                    </div>
+                                </div>
+                                <span class="bg-emerald-500/30 text-emerald-300 border border-emerald-400/30 px-2 py-0.5 rounded font-bold text-[10px] shrink-0">Rp 8.000</span>
+                            </div>
+
+                            <div class="bg-white/10 p-2.5 sm:p-3 rounded-xl border border-white/10 flex items-center justify-between text-xs gap-2">
+                                <div class="flex items-center space-x-2.5 min-w-0">
+                                    <div class="w-8 h-8 rounded-lg bg-indigo-400 text-slate-900 flex items-center justify-center font-bold shrink-0">
+                                        <i class="fa-solid fa-print"></i>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="font-bold text-white truncate">Print Skripsi + Jilid Lakban</p>
+                                        <p class="text-[10px] text-slate-300 truncate">Fotokopi ➔ FMIPA O2</p>
+                                    </div>
+                                </div>
+                                <span class="bg-emerald-500/30 text-emerald-300 border border-emerald-400/30 px-2 py-0.5 rounded font-bold text-[10px] shrink-0">Rp 12.000</span>
+                            </div>
+
+                            <div class="bg-white/10 p-2.5 sm:p-3 rounded-xl border border-white/10 flex items-center justify-between text-xs gap-2">
+                                <div class="flex items-center space-x-2.5 min-w-0">
+                                    <div class="w-8 h-8 rounded-lg bg-purple-400 text-slate-900 flex items-center justify-center font-bold shrink-0">
+                                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="font-bold text-white truncate">Dorong Motor Mogok Gate</p>
+                                        <p class="text-[10px] text-slate-300 truncate">Lidah Wetan ➔ Bengkel</p>
+                                    </div>
+                                </div>
+                                <span class="bg-purple-500/30 text-purple-200 border border-purple-400/30 px-2 py-0.5 rounded font-bold text-[10px] shrink-0">Rp 20.000</span>
+                            </div>
+                        </div>
+
+                        <div class="pt-1 text-center">
+                            <p class="text-[10px] sm:text-[11px] text-slate-300 italic">"Gak perlu ribet keluar kelas, pesan dan Mitra Suruh langsung jalan!"</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Stats Bar -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
+                    <span class="block text-xl sm:text-2xl font-black text-unesa-navy">100%</span>
+                    <span class="text-[10px] sm:text-xs text-slate-500 font-bold">Mahasiswa UNESA</span>
+                </div>
+                <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
+                    <span class="block text-xl sm:text-2xl font-black text-emerald-600">3 Kampus</span>
+                    <span class="text-[10px] sm:text-xs text-slate-500 font-bold">Ketintang, Lidah, Magetan</span>
+                </div>
+                <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
+                    <span class="block text-xl sm:text-2xl font-black text-amber-500">Nego Transparan</span>
+                    <span class="text-[10px] sm:text-xs text-slate-500 font-bold">Sepakati Tarif Bersama</span>
+                </div>
+                <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
+                    <span class="block text-xl sm:text-2xl font-black text-indigo-600">UNESA Pay</span>
+                    <span class="text-[10px] sm:text-xs text-slate-500 font-bold">Garansi Uang Kembali</span>
+                </div>
+            </div>
+
+            <!-- Features Highlights -->
+            <div class="space-y-4 sm:space-y-6">
+                <div class="text-center max-w-2xl mx-auto px-2">
+                    <h2 class="text-xl sm:text-2xl font-black text-unesa-navy">Mengapa Memakai UNESA Suruh?</h2>
+                    <p class="text-xs text-slate-500 mt-1">Ekosistem Saling Bantu yang Dibuat Khusus Komunitas Kampus Universitas Negeri Surabaya</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+                    <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition space-y-3">
+                        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-lg sm:text-xl font-bold">
+                            <i class="fa-solid fa-user-shield"></i>
+                        </div>
+                        <h3 class="font-extrabold text-sm sm:text-base text-slate-800">Aman & Terverifikasi</h3>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            Setiap Mitra Suruh wajib memverifikasi akun dengan KTM Digital & Email Resmi UNESA, menjamin keamanan transaksi Anda.
+                        </p>
+                    </div>
+
+                    <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition space-y-3">
+                        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-lg sm:text-xl font-bold">
+                            <i class="fa-solid fa-hand-holding-dollar"></i>
+                        </div>
+                        <h3 class="font-extrabold text-sm sm:text-base text-slate-800">Tambahan Penghasilan Mitra</h3>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            Mahasiswa yang senggang bisa mendaftar jadi Mitra Suruh di kampus untuk menambah uang saku dengan jam kerja fleksibel.
+                        </p>
+                    </div>
+
+                    <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition space-y-3 sm:col-span-2 md:col-span-1">
+                        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center text-lg sm:text-xl font-bold">
+                            <i class="fa-solid fa-bolt-lightning"></i>
+                        </div>
+                        <h3 class="font-extrabold text-sm sm:text-base text-slate-800">Pengiriman Cepat Antar Gedung</h3>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            Mitra berada di lokasi kampus yang sama sehingga pesanan makanan, cetak berkas, atau titip barang sampai lebih cepat.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- How It Works -->
+            <div class="bg-slate-100 p-5 sm:p-8 rounded-2xl sm:rounded-3xl border border-slate-200 space-y-4 sm:space-y-6">
+                <div class="text-center">
+                    <h2 class="text-xl sm:text-2xl font-black text-unesa-navy">Cara Kerja Layanan</h2>
+                    <p class="text-xs text-slate-500 mt-1">3 langkah simpel untuk mendapatkan bantuan suruhan kampus</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                    <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 text-center space-y-2">
+                        <div class="w-8 h-8 rounded-full bg-unesa-navy text-unesa-gold mx-auto flex items-center justify-center font-extrabold text-sm">1</div>
+                        <h4 class="font-bold text-sm text-slate-800">Tulis Suruhan</h4>
+                        <p class="text-xs text-slate-500">Pilih kategori atau pesan custom, tentukan lokasi jemput & antar, lalu ajukan tarif.</p>
+                    </div>
+                    <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 text-center space-y-2">
+                        <div class="w-8 h-8 rounded-full bg-unesa-navy text-unesa-gold mx-auto flex items-center justify-center font-extrabold text-sm">2</div>
+                        <h4 class="font-bold text-sm text-slate-800">Pilih Mitra Suruh</h4>
+                        <p class="text-xs text-slate-500">Mitra di area kampus akan mengajukan tawaran. Pilih Mitra terbaik berdasarkan rating.</p>
+                    </div>
+                    <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 text-center space-y-2">
+                        <div class="w-8 h-8 rounded-full bg-unesa-navy text-unesa-gold mx-auto flex items-center justify-center font-extrabold text-sm">3</div>
+                        <h4 class="font-bold text-sm text-slate-800">Bayar & Terima Selesai</h4>
+                        <p class="text-xs text-slate-500">Bayar via UNESA Pay / Cash, pantau Mitra langsung di peta, lalu berikan kode serah terima setelah barang atau layanan Anda terima.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action CTA Box -->
+            <div class="guest-only bg-gradient-to-r from-emerald-800 to-unesa-navy text-white p-6 sm:p-8 rounded-2xl sm:rounded-3xl text-center space-y-4 shadow-xl border border-emerald-500/30">
+                <h3 class="text-xl sm:text-2xl font-black">Siap Memulai di UNESA Suruh?</h3>
+                <p class="text-xs text-slate-200 max-w-xl mx-auto">
+                    Masuk dengan akun mahasiswa UNESA kamu sekarang atau daftar sebagai Mitra Suruh untuk mulai menghasilkan imbalan.
+                </p>
+                <div class="flex flex-col xs:flex-row justify-center items-stretch xs:items-center gap-2.5 sm:gap-3 pt-2">
+                    <button onclick="openLoginModal()" class="px-6 py-2.5 bg-unesa-gold text-unesa-navy rounded-xl font-bold text-xs hover:bg-unesa-goldHover transition">Masuk Akun</button>
+                    <button onclick="openRegisterModal()" class="px-6 py-2.5 bg-white text-slate-900 rounded-xl font-bold text-xs hover:bg-slate-100 transition">Daftar Akun Baru</button>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- VIEW 1: PEMESAN - DAFTAR PESANAN SAYA -->
+        <!-- ========================================== -->
+        <section id="view-pemesan-orders" class="tab-content hidden space-y-4 sm:space-y-6">
+            
+            <!-- Callout Custom Request -->
+            <div class="bg-gradient-to-r from-purple-900 via-indigo-900 to-unesa-navy text-white p-4 sm:p-5 rounded-2xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-purple-400/30">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-purple-500/20 border border-purple-400/40 text-purple-300 flex items-center justify-center font-bold text-lg sm:text-xl shrink-0">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-sm sm:text-base text-purple-200">Butuh Bantuan Unik / Custom?</h3>
+                        <p class="text-xs text-slate-300">Jaga stand bazar, dorong motor mogok, titip belikan ATK khusus, atau bantuan acara kampus.</p>
+                    </div>
+                </div>
+                <button onclick="checkAuthAndCreateOrder()" class="w-full sm:w-auto px-4 py-2.5 bg-purple-500 hover:bg-purple-600 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center justify-center space-x-2 shrink-0">
+                    <i class="fa-solid fa-plus-circle"></i>
+                    <span>Buat Pesanan Custom</span>
+                </button>
+            </div>
+
+            <!-- Categories Filter -->
+            <div class="bg-white p-3.5 sm:p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div>
+                        <h3 class="text-sm sm:text-base font-extrabold text-unesa-navy">Kategori Jasa Suruh</h3>
+                        <p class="text-[11px] sm:text-xs text-slate-500">Filter jenis bantuan atau buat pesanan suruhan baru</p>
+                    </div>
+                    <button onclick="checkAuthAndCreateOrder()" class="px-3.5 py-2 bg-unesa-navy text-unesa-gold font-bold text-xs rounded-xl shadow hover:bg-unesa-navyLight transition flex items-center justify-center space-x-2 self-start sm:self-auto w-full sm:w-auto">
+                        <i class="fa-solid fa-cart-plus"></i>
+                        <span>+ Buat Pesanan Baru</span>
+                    </button>
+                </div>
+                <div id="categoriesContainerPemesan" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-2.5"></div>
+            </div>
+
+            <!-- Pemesan Orders Grid Header -->
+            <div class="flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center space-x-2">
+                        <i class="fa-solid fa-box-archive text-amber-500"></i>
+                        <span>Daftar Pesanan Saya (Pemesan)</span>
+                    </h3>
+                    <p class="text-xs text-slate-500">Menampilkan daftar suruhan yang Anda publikasikan.</p>
+                </div>
+            </div>
+
+            <!-- Orders Grid -->
+            <div id="pemesanOrdersGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5"></div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- VIEW 2: PEMESAN - FORM BUAT PESANAN BARU -->
+        <!-- ========================================== -->
+        <section id="view-pemesan-create" class="tab-content hidden space-y-6">
+            <div class="max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-8">
+                <div class="border-b border-slate-100 pb-4 mb-5 flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-unesa-navy text-unesa-gold flex items-center justify-center font-bold text-lg shrink-0">
+                        <i class="fa-solid fa-cart-plus"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg sm:text-xl font-bold text-unesa-navy">Form Buat Suruhan Baru</h2>
+                        <p class="text-xs text-slate-500">Isi detail instruksi bantuan, lokasi penjemputan, dan tarif yang diajukan.</p>
+                    </div>
+                </div>
+
+                <form id="formCreateOrder" onsubmit="handleCreateOrder(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Judul Permintaan *</label>
+                        <input type="text" id="orderJudul" required placeholder="Contoh: Titip Beli Ayam Geprek Kantin Lidah + Es Teh Jumbo" class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-unesa-navy focus:outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Kategori Suruhan *</label>
+                            <select id="orderCategory" required onchange="onCategoryChange()" class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white focus:ring-2 focus:ring-unesa-navy focus:outline-none"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tarif Imbalan Diajukan *</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-2.5 text-xs font-bold text-slate-400">Rp</span>
+                                <input type="number" id="orderHargaDiajukan" required min="1000" step="1000" inputmode="numeric" placeholder="Tulis tarif yang kamu tawarkan" class="w-full pl-9 pr-3 py-2.5 text-xs border border-slate-300 rounded-xl font-bold text-emerald-700 focus:ring-2 focus:ring-unesa-navy focus:outline-none">
+                            </div>
+                            <p id="orderTarifHint" class="text-[10px] text-slate-400 mt-1"></p>
+                        </div>
+                    </div>
+
+                    <div id="orderModeBox" class="hidden bg-purple-50 border border-purple-200 rounded-xl p-3 text-xs space-y-2">
+                        <p class="font-bold text-purple-900">Permintaan custom ini butuh lokasi seperti apa?</p>
+                        <label class="flex items-start gap-2 cursor-pointer"><input type="radio" name="orderModeCustom" value="rute" checked onchange="applyOrderMode()" class="mt-0.5"><span>Jemput lalu antar (ada titik awal dan titik tujuan)</span></label>
+                        <label class="flex items-start gap-2 cursor-pointer"><input type="radio" name="orderModeCustom" value="satu" onchange="applyOrderMode()" class="mt-0.5"><span>Dikerjakan di satu lokasi saja (mis. bersih-bersih, bantu pindahan)</span></label>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                            <span class="text-[10px] bg-amber-500 text-white font-black px-1.5 py-0.5 rounded inline-block" id="orderLblAwal">LOKASI AWAL / JEMPUT</span>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Area Kampus *</label>
+                                <select id="orderAreaAwal" required class="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-bold text-unesa-navy">
+                                    <option value="Ketintang">📍 Kampus Ketintang</option>
+                                    <option value="Lidah Wetan">📍 Kampus Lidah Wetan</option>
+                                    <option value="Magetan">📍 Kampus Magetan</option>
+                                    <option value="Luar Kampus">🗺️ Di Luar Area Kampus</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Detail Tempat *</label>
+                                <input type="text" id="orderLokasiAwalDetail" required maxlength="150" placeholder="Gedung, kantin, atau nama toko..." class="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5">
+                            </div>
+                            <div class="space-y-1.5 pt-1">
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase">Titik di Google Maps *</label>
+                                <button type="button" id="btnPickAwal" onclick="openMapPicker('awal')" class="w-full py-2 bg-white border border-unesa-navy text-unesa-navy hover:bg-unesa-navy hover:text-white font-bold text-xs rounded-lg transition">
+                                    <i class="fa-solid fa-map-location-dot mr-1"></i>Pilih titik di peta
+                                </button>
+                                <input type="url" id="orderGmapsAwal" oninput="onGmapsInput('awal')" placeholder="Atau tempel link Google Maps" class="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5">
+                                <div id="mapChipAwal" class="text-[11px] text-slate-400">Belum ada titik dipilih</div>
+                            </div>
+                        </div>
+
+                        <div id="orderBlockTujuan" class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                            <span class="text-[10px] bg-emerald-600 text-white font-black px-1.5 py-0.5 rounded inline-block" id="orderLblTujuan">LOKASI TUJUAN / ANTAR</span>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Area Kampus *</label>
+                                <select id="orderAreaTujuan" required class="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-bold text-unesa-navy">
+                                    <option value="Ketintang">📍 Kampus Ketintang</option>
+                                    <option value="Lidah Wetan">📍 Kampus Lidah Wetan</option>
+                                    <option value="Magetan">📍 Kampus Magetan</option>
+                                    <option value="Luar Kampus">🗺️ Di Luar Area Kampus</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Detail Tempat *</label>
+                                <input type="text" id="orderLokasiTujuanDetail" required maxlength="150" placeholder="Ruang kelas, gazebo, kos, dll..." class="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5">
+                            </div>
+                            <div class="space-y-1.5 pt-1">
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase">Titik di Google Maps *</label>
+                                <button type="button" id="btnPickTujuan" onclick="openMapPicker('tujuan')" class="w-full py-2 bg-white border border-unesa-navy text-unesa-navy hover:bg-unesa-navy hover:text-white font-bold text-xs rounded-lg transition">
+                                    <i class="fa-solid fa-map-location-dot mr-1"></i>Pilih titik di peta
+                                </button>
+                                <input type="url" id="orderGmapsTujuan" oninput="onGmapsInput('tujuan')" placeholder="Atau tempel link Google Maps" class="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5">
+                                <div id="mapChipTujuan" class="text-[11px] text-slate-400">Belum ada titik dipilih</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Deskripsi Instruksi Detail *</label>
+                        <textarea id="orderDeskripsi" rows="3" required placeholder="Tuliskan catatan detail: Sambal dipisah, varian es teh manis, titip kumpulkan di meja dosen..." class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-unesa-navy focus:outline-none"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Foto Lampiran (Opsional, Maks. 3)</label>
+                        <p class="text-[11px] text-slate-400 mb-2">Contoh: foto menu, berkas, atau barang. Diambil langsung dari kamera atau galeri, tersimpan aman, dan hanya terlihat oleh Mitra yang membuka pesanan ini.</p>
+                        <div id="photoBox-order" class="flex flex-wrap gap-2"></div>
+                    </div>
+
+                    <div class="bg-rose-50 border border-rose-200 rounded-xl p-3 space-y-2 text-xs">
+                        <p class="font-bold text-rose-900"><i class="fa-solid fa-ban mr-1"></i>Barang dan permintaan yang dilarang</p>
+                        <ul class="list-disc pl-4 text-rose-800 space-y-0.5">
+                            <li>Obat terlarang, narkoba, atau rokok dan vape untuk di bawah umur</li>
+                            <li>Minuman keras, senjata, atau barang berbahaya</li>
+                            <li>Uang tunai besar, kartu ATM beserta PIN, atau barang berharga tanpa pengawasan</li>
+                            <li>Joki atau contekan ujian dan hal lain yang melanggar aturan kampus maupun hukum</li>
+                            <li>Permintaan yang membahayakan, melecehkan, atau memaksa Mitra</li>
+                        </ul>
+                        <label class="flex items-start gap-2 cursor-pointer"><input type="checkbox" id="orderSetuju" required class="mt-0.5"><span class="font-bold text-slate-700">Saya menyatakan permintaan ini tidak melanggar daftar di atas dan setuju pesanan dapat dibatalkan admin bila melanggar.</span></label>
+                    </div>
+                    <div class="pt-4 flex flex-col-reverse xs:flex-row justify-end gap-2 sm:space-x-3">
+                        <button type="button" onclick="switchTab('pemesan-orders')" class="w-full xs:w-auto px-5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-100">Batal</button>
+                        <button type="submit" class="w-full xs:w-auto px-6 py-2.5 rounded-xl bg-unesa-navy text-unesa-gold hover:bg-unesa-navyLight font-bold text-xs shadow-md flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            <span>Publikasikan Pesanan</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- VIEW 3: PEMESAN - TAWARAN MASUK & PROSES -->
+        <!-- ========================================== -->
+        <section id="view-pemesan-offers" class="tab-content hidden space-y-4 sm:space-y-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg sm:text-xl font-bold text-unesa-navy">Tawaran Masuk dari Mitra Suruh</h2>
+                    <p class="text-xs text-slate-500">Pilih Mitra yang sesuai, sepakati harga, lalu konfirmasi pembayaran.</p>
+                </div>
+            </div>
+
+            <div id="pemesanOffersContainer" class="space-y-4"></div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- VIEW 4: PEMESAN - RIWAYAT PEMBAYARAN -->
+        <!-- ========================================== -->
+        <section id="view-pemesan-payments" class="tab-content hidden space-y-4 sm:space-y-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg sm:text-xl font-bold text-unesa-navy">Riwayat Pembayaran UNESA Pay</h2>
+                    <p class="text-xs text-slate-500">Kuitansi pembayaran lunas terverifikasi platform.</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm w-full">
+                <div class="overflow-x-auto w-full custom-scrollbar">
+                    <table class="w-full text-left text-xs min-w-[640px]">
+                        <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase whitespace-nowrap">
+                            <tr>
+                                <th class="p-3.5">ID Payment</th>
+                                <th class="p-3.5">ID Suruhan</th>
+                                <th class="p-3.5">Metode Bayar</th>
+                                <th class="p-3.5">Jumlah Suruhan</th>
+                                <th class="p-3.5">Biaya Platform</th>
+                                <th class="p-3.5">Total Bayar</th>
+                                <th class="p-3.5">Status</th>
+                                <th class="p-3.5">Waktu Lunas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pemesanPaymentsTableBody" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- VIEW 5: MITRA - BURSA SURUHAN KAMPUS (JOB FEED) -->
+        <!-- ========================================== -->
+        <section id="view-mitra-feed" class="tab-content hidden space-y-4 sm:space-y-6">
+            
+            <!-- Area & Status Summary Banner -->
+            <div class="bg-gradient-to-r from-emerald-900 to-slate-900 text-white p-4 sm:p-5 rounded-2xl shadow-sm border border-emerald-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-400 flex items-center justify-center font-bold text-lg sm:text-xl shrink-0">
+                        <i class="fa-solid fa-briefcase"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-sm sm:text-base text-emerald-300">Bursa Suruhan Kampus Aktif</h3>
+                        <p class="text-xs text-slate-300">Menampilkan pesanan suruhan terbuka di area kerja: <strong class="text-amber-400" id="lblFeedActiveArea">Ketintang</strong></p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2 text-xs">
+                    <div id="mitraStatusBar"></div>
+                </div>
+            </div>
+
+            <!-- Search & Filters -->
+            <div class="bg-white p-3.5 sm:p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div class="relative w-full sm:w-80">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-xs"></i>
+                    <input type="text" id="searchMitraFeedInput" oninput="renderMitraFeed()" placeholder="Cari suruhan di area kerja..." class="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:outline-none">
+                </div>
+                <div class="flex items-center justify-between sm:justify-end space-x-2 text-xs font-bold text-slate-600 w-full sm:w-auto">
+                    <span>Ganti Area Kerja:</span>
+                    <select id="selectFeedAreaFilter" onchange="changeMitraArea(this.value)" class="bg-slate-100 text-emerald-800 border border-slate-300 font-bold px-3 py-1.5 rounded-xl focus:outline-none">
+                        <option value="Ketintang">📍 Ketintang</option>
+                        <option value="Lidah Wetan">📍 Lidah Wetan</option>
+                        <option value="Magetan">📍 Magetan</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Job Feed Grid -->
+            <div id="mitraFeedGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5"></div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- VIEW 6: MITRA - TUGAS & PENAWARAN SAYA -->
+        <!-- ========================================== -->
+        <section id="view-mitra-tasks" class="tab-content hidden space-y-4 sm:space-y-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg sm:text-xl font-bold text-emerald-900">Tugas & Penawaran Saya (Mitra)</h2>
+                    <p class="text-xs text-slate-500">Kelola status pesanan yang sedang kamu kerjakan atau pantau tawaran yang kamu kirim.</p>
+                </div>
+            </div>
+
+            <div id="mitraTasksContainer" class="space-y-4"></div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- VIEW 7: MITRA - PENDAPATAN & DOMPET -->
+        <!-- ========================================== -->
+        <section id="view-mitra-earnings" class="tab-content hidden space-y-4 sm:space-y-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5">
+                <div class="bg-gradient-to-br from-emerald-800 to-emerald-950 rounded-2xl p-5 sm:p-6 text-white shadow-md border border-emerald-500/30 space-y-2">
+                    <span class="text-xs text-emerald-200 font-bold uppercase block">Total Pendapatan Mitra</span>
+                    <h3 class="text-2xl font-black text-amber-300" id="walletTotalEarnings">Rp 0</h3>
+                    <p class="text-[11px] text-emerald-200">Terakumulasi dari transaksi selesai</p>
+                </div>
+                <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+                    <span class="text-xs text-slate-500 font-bold uppercase block">Saldo Siap Penarikan</span>
+                    <h3 class="text-2xl font-extrabold text-emerald-600" id="walletAvailable">Rp 0</h3>
+                    <button onclick="openWithdrawModal()" class="mt-2 w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition">
+                        Cairkan ke E-Wallet
+                    </button>
+                </div>
+                <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-2 sm:col-span-2 md:col-span-1">
+                    <span class="text-xs text-slate-500 font-bold uppercase block">Biaya Platform (Rp 1.000 / Order)</span>
+                    <h3 class="text-2xl font-extrabold text-slate-700" id="walletFeeTotal">Rp 0</h3>
+                    <p class="text-[11px] text-slate-400">Ditanggung pemesan, tidak memotong imbalan Anda</p>
+                </div>
+            </div>
+
+            <!-- Earnings Log Table -->
+            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm w-full">
+                <div class="p-4 border-b border-slate-100 font-bold text-sm text-slate-800">
+                    Catatan Transaksi Selesai (Mitra)
+                </div>
+                <div class="overflow-x-auto w-full custom-scrollbar">
+                    <table class="w-full text-left text-xs min-w-[500px]">
+                        <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase whitespace-nowrap">
+                            <tr>
+                                <th class="p-3.5">ID Order</th>
+                                <th class="p-3.5">Judul Tugas</th>
+                                <th class="p-3.5">Imbalan Murni Mitra</th>
+                                <th class="p-3.5">Status Wallet</th>
+                                <th class="p-3.5">Tanggal Selesai</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mitraEarningsTableBody" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        
+            <!-- Riwayat Penarikan Saldo -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm w-full">
+                <div class="p-4 border-b border-slate-100 font-bold text-sm text-slate-800">Riwayat Penarikan Saldo</div>
+                <div id="withdrawalsContainer" class="p-4 space-y-2"></div>
+            </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- VIEW 8: MITRA - PROFIL & KTM DIGITAL -->
+        <!-- ========================================== -->
+        <section id="view-mitra-profile" class="tab-content hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- KTM Digital Card -->
+                <div class="lg:col-span-1 space-y-4">
+                    <div class="bg-gradient-to-br from-unesa-navy via-unesa-navyLight to-slate-900 rounded-2xl p-5 sm:p-6 text-white shadow-xl relative overflow-hidden border border-amber-400/40">
+                        <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-unesa-gold/10 rounded-full blur-2xl"></div>
+                        
+                        <!-- Header Card -->
+                        <div class="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-7 h-7 rounded-full bg-unesa-gold text-unesa-navy flex items-center justify-center font-black text-xs shrink-0">
+                                    U
+                                </div>
+                                <span class="font-extrabold text-xs tracking-wider">KTM DIGITAL MITRA UNESA</span>
+                            </div>
+                            <span id="ktmStatus" class="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 px-2 py-0.5 rounded-full font-bold whitespace-nowrap">Terverifikasi</span>
+                        </div>
+
+                        <!-- Details Card -->
+                        <div class="flex space-x-3 sm:space-x-4 items-center">
+                            <img id="ktmFoto" src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=200" class="w-16 h-20 sm:w-20 sm:h-24 object-cover rounded-xl border-2 border-unesa-gold shadow-md shrink-0" alt="KTM">
+                            <div class="space-y-1 min-w-0">
+                                <h3 id="ktmNama" class="font-bold text-xs sm:text-sm text-unesa-gold truncate">Ahmad Fauzi</h3>
+                                <p id="ktmNIM" class="text-[11px] sm:text-xs font-mono text-slate-200">NIM: 21050974012</p>
+                                <p id="ktmFakultas" class="text-[11px] sm:text-xs text-slate-300 truncate">Fakultas Teknik (FT)</p>
+                                <div class="mt-1 flex items-center space-x-1 text-[10px] sm:text-[11px] text-amber-300 bg-white/10 px-2 py-0.5 rounded truncate">
+                                    <i class="fa-solid fa-map-pin"></i>
+                                    <span>Area Utama: <strong id="ktmAreaKerja">Ketintang</strong></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Stats Footer -->
+                        <div class="mt-5 sm:mt-6 pt-3 border-t border-white/10 grid grid-cols-2 gap-2 text-center text-xs">
+                            <div class="bg-white/5 p-2 rounded-lg">
+                                <span class="block font-bold text-unesa-gold text-xs sm:text-sm" id="ktmRating">⭐ 4.9 / 5.0</span>
+                                <span class="text-[10px] text-slate-400">Rating Mitra</span>
+                            </div>
+                            <div class="bg-white/5 p-2 rounded-lg">
+                                <span class="block font-bold text-emerald-400 text-xs sm:text-sm" id="ktmTotalOrder">34 Selesai</span>
+                                <span class="text-[10px] text-slate-400">Total Tugas</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Config Card -->
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                        <div class="flex items-center space-x-2 text-unesa-navy">
+                            <i class="fa-solid fa-map-location-dot"></i>
+                            <h4 class="font-bold text-xs uppercase">Pengaturan Area Operasional</h4>
+                        </div>
+                        <p class="text-[11px] text-slate-500">Pilih domisili kampus utama tempat Anda siap siaga menerima orderan suruh:</p>
+                        <select id="profileAreaSelect" onchange="updateProfileArea(this.value)" class="w-full text-xs font-bold border border-slate-300 rounded-xl px-3 py-2 bg-slate-50 text-unesa-navy">
+                            <option value="Ketintang">📍 Kampus Ketintang (Surabaya)</option>
+                            <option value="Lidah Wetan">📍 Kampus Lidah Wetan (Surabaya)</option>
+                            <option value="Magetan">📍 Kampus Magetan</option>
+                        </select>
+                        <div class="pt-2 border-t border-slate-100 space-y-1.5">
+                            <p class="text-[11px] text-slate-500">Jangkauan penerimaan: tampilkan suruhan yang titiknya berada dalam radius ini dari pusat kampus (termasuk suruhan di luar kampus).</p>
+                            <select id="profileRadiusSelect" onchange="updateProfileRadius(this.value)" class="w-full text-xs font-bold border border-slate-300 rounded-xl px-3 py-2 bg-slate-50 text-unesa-navy">
+                                <option value="1">Radius 1 km</option><option value="2">Radius 2 km</option><option value="3">Radius 3 km</option><option value="5">Radius 5 km</option>
+                                <option value="8">Radius 8 km</option><option value="10">Radius 10 km</option><option value="15">Radius 15 km</option><option value="20">Radius 20 km</option>
+                            </select>
+                        </div>
+                        <div class="pt-2 border-t border-slate-100 space-y-2">
+                            <p class="text-[11px] font-bold text-slate-700 uppercase">Foto KTM untuk Verifikasi</p>
+                            <div id="ktmNote" class="text-[11px] text-slate-500"></div>
+                            <div id="ktmCurrent"></div>
+                            <div id="photoBox-ktm" class="flex flex-wrap gap-2"></div>
+                            <button type="button" onclick="submitKtm(this)" class="w-full py-2 bg-unesa-navy text-unesa-gold font-bold text-xs rounded-xl shadow">Kirim Foto KTM</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Customer Reviews List -->
+                <div class="lg:col-span-2 space-y-4">
+                    <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
+                        <h3 class="font-bold text-slate-800 text-sm mb-3 flex items-center space-x-2">
+                            <i class="fa-solid fa-star text-amber-400"></i>
+                            <span>Ulasan & Penilaian Pelanggan (Pemesan)</span>
+                        </h3>
+                        <div id="reviewsListContainer" class="space-y-3"></div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- VIEW 9: PUSAT LAPORAN & KENDALA (SHARED) -->
+        <!-- ========================================== -->
+        <section id="view-reports-list" class="tab-content hidden space-y-4 sm:space-y-6">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-lg sm:text-xl font-bold text-unesa-navy">Pusat Laporan Kendala</h2>
+                    <p class="text-xs text-slate-500">Ajukan laporan jika ada ketidaksesuaian pesanan atau kendala komunikasi.</p>
+                </div>
+                <button onclick="openReportModal()" class="w-full sm:w-auto px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 shadow flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>Buat Laporan Baru</span>
+                </button>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-4">
+                <div id="reportsContainer" class="space-y-3"></div>
+            </div>
+        </section>
+
+    </main>
+
+
+    <!-- ==================== MODALS ==================== -->
+
+    <!-- MODAL: LOGIN -->
+    <div id="modalLogin" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+        <div class="bg-white w-full max-w-sm my-auto rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="bg-unesa-navy p-3.5 sm:p-4 text-white flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-xs sm:text-sm flex items-center space-x-2">
+                    <i class="fa-solid fa-right-to-bracket text-unesa-gold"></i>
+                    <span>Masuk Akun UNESA Suruh</span>
+                </h3>
+                <button onclick="closeLoginModal()" class="text-slate-300 hover:text-white p-1"><i class="fa-solid fa-xmark text-base sm:text-lg"></i></button>
+            </div>
+            <form onsubmit="handleLoginSubmit(event)" class="p-4 sm:p-5 space-y-3 sm:space-y-4 overflow-y-auto custom-scrollbar flex-grow">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email Mahasiswa *</label>
+                    <input type="email" id="loginEmail" required placeholder="nama@unesa.ac.id" class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2.5">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Kata Sandi *</label>
+                    <input type="password" id="loginPassword" required placeholder="••••••••" class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2.5">
+                </div>
+                <div id="loginError" role="alert" class="hidden bg-rose-50 border border-rose-300 text-rose-700 text-xs font-bold rounded-xl px-3.5 py-2.5"></div>
+
+                <div class="pt-2 flex justify-end space-x-2">
+                    <button type="button" onclick="closeLoginModal()" class="px-4 py-2 border rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-unesa-navy text-unesa-gold font-bold text-xs rounded-xl hover:bg-unesa-navyLight shadow">Masuk Sekarang</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: REGISTER -->
+    <div id="modalRegister" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+        <div class="bg-white w-full max-w-md my-auto rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+            <div class="bg-unesa-navy p-3.5 sm:p-4 text-white flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-xs sm:text-sm flex items-center space-x-2">
+                    <i class="fa-solid fa-user-plus text-unesa-gold"></i>
+                    <span>Daftar Akun Mahasiswa UNESA</span>
+                </h3>
+                <button onclick="closeRegisterModal()" class="text-slate-300 hover:text-white p-1"><i class="fa-solid fa-xmark text-base sm:text-lg"></i></button>
+            </div>
+            <form onsubmit="handleRegisterSubmit(event)" class="p-4 sm:p-5 space-y-3 overflow-y-auto custom-scrollbar flex-grow">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Lengkap *</label>
+                    <input type="text" id="regNama" required placeholder="Siti Rahmawati" class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email UNESA *</label>
+                        <input type="email" id="regEmail" required placeholder="siti.fmipa@unesa.ac.id" class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">No. WhatsApp *</label>
+                        <input type="tel" id="regNoHp" required placeholder="081234567890" class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Kata Sandi *</label>
+                        <input type="password" id="regPassword" required minlength="8" maxlength="72" placeholder="Min. 8 karakter" class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Jenis Kelamin *</label>
+                        <select id="regGender" required class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2 bg-white">
+                            <option value="L">Laki-Laki</option>
+                            <option value="P">Perempuan</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="border-t border-slate-200 pt-3 mt-2">
+                    <label class="flex items-center space-x-2 cursor-pointer mb-2">
+                        <input type="checkbox" id="regIsProvider" onchange="toggleRegProviderFields()" class="rounded text-unesa-navy w-4 h-4">
+                        <span class="text-xs font-bold text-unesa-navy">Daftar Sekaligus Sebagai Mitra Suruh</span>
+                    </label>
+
+                    <div id="regProviderFields" class="hidden bg-emerald-50/60 p-3 rounded-xl border border-emerald-200 space-y-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">NIM *</label>
+                                <input type="text" id="regNIM" placeholder="22030184005" class="w-full text-xs border border-slate-300 rounded-xl px-3 py-1.5">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Fakultas *</label>
+                                <select id="regFakultas" class="w-full text-xs border border-slate-300 rounded-xl px-3 py-1.5 bg-white">
+                                    <option value="FT (Teknik)">FT (Teknik)</option>
+                                    <option value="FIP (Ilmu Pendidikan)">FIP (Ilmu Pendidikan)</option>
+                                    <option value="FMIPA (MIPA)">FMIPA (MIPA)</option>
+                                    <option value="FISH (Ilmu Sosial)">FISH (Ilmu Sosial)</option>
+                                    <option value="Kampus Magetan">Kampus Magetan</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Area Kerja Utama Mitra *</label>
+                            <select id="regAreaKerja" class="w-full text-xs border border-slate-300 rounded-xl px-3 py-1.5 bg-white font-bold text-unesa-navy">
+                                <option value="Ketintang">📍 Ketintang</option>
+                                <option value="Lidah Wetan">📍 Lidah Wetan</option>
+                                <option value="Magetan">📍 Magetan</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-2 flex justify-end space-x-2">
+                    <button type="button" onclick="closeRegisterModal()" class="px-4 py-2 border rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl hover:bg-emerald-700 shadow">Daftar Akun Baru</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: KIRIM TAWARAN (MITRA) -->
+    <div id="modalOffer" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+        <div class="bg-white w-full max-w-md my-auto rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="bg-emerald-800 p-3.5 sm:p-4 text-white flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-xs sm:text-sm flex items-center space-x-2">
+                    <i class="fa-solid fa-hand-holding-dollar text-amber-300"></i>
+                    <span>Ajukan Penawaran Mitra Suruh</span>
+                </h3>
+                <button onclick="closeOfferModal()" class="text-slate-300 hover:text-white p-1"><i class="fa-solid fa-xmark text-base sm:text-lg"></i></button>
+            </div>
+            <form onsubmit="handleSendOffer(event)" class="p-4 sm:p-5 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
+                <input type="hidden" id="modalOfferOrderId">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tarif Imbalan Tawaran (Rp)</label>
+                    <input type="number" id="modalOfferHarga" required min="1000" step="1000" class="w-full text-sm border border-slate-300 rounded-xl px-3.5 py-2 font-bold text-emerald-700">
+                    <p class="text-[10px] text-slate-400 mt-1">Anda bisa menyetujui tarif awal pemesan atau mengajukan nego bersaing.</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Pesan Catatan untuk Pemesan</label>
+                    <textarea id="modalOfferPesan" rows="2" placeholder="Contoh: Halo mas, posisi saya di kantin Lidah Wetan, siap antar skrg juga!" class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2"></textarea>
+                </div>
+                <div class="pt-2 flex justify-end space-x-2">
+                    <button type="button" onclick="closeOfferModal()" class="px-4 py-2 border rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-emerald-700 text-white font-bold text-xs rounded-xl hover:bg-emerald-800 shadow">Kirim Penawaran</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: BAYAR (PEMESAN) -->
+    <div id="modalPayment" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+        <div class="bg-white w-full max-w-md my-auto rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="bg-unesa-navy p-3.5 sm:p-4 text-white flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-xs sm:text-sm flex items-center space-x-2">
+                    <i class="fa-solid fa-credit-card text-unesa-gold"></i>
+                    <span>Gateway Pembayaran UNESA Pay</span>
+                </h3>
+                <button onclick="closePaymentModal()" class="text-slate-200 hover:text-white p-1"><i class="fa-solid fa-xmark text-base sm:text-lg"></i></button>
+            </div>
+            
+            <form onsubmit="handleProcessPayment(event)" class="p-4 sm:p-5 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
+                <input type="hidden" id="payOrderId">
+                <input type="hidden" id="payOfferId">
+
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 text-xs">
+                    <div class="flex justify-between text-slate-600">
+                        <span>Harga Imbalan Mitra:</span>
+                        <span id="payHargaFinalText" class="font-bold text-slate-800">Rp 0</span>
+                    </div>
+                    <div class="flex justify-between text-slate-600">
+                        <span>Biaya Layanan Platform:</span>
+                        <span class="font-bold text-slate-800">Rp 1.000</span>
+                    </div>
+                    <div class="border-t border-slate-200 pt-2 flex justify-between font-extrabold text-sm text-emerald-700">
+                        <span>Total Pembayaran:</span>
+                        <span id="payTotalBayarText">Rp 0</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Pilih Metode Pembayaran *</label>
+                    <select id="payMetode" required class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white font-semibold">
+                        <option value="QRIS UNESA Pay">📱 QRIS UNESA Pay (Instan)</option>
+                        <option value="GoPay Kampus">💙 GoPay Kampus</option>
+                        <option value="ShopeePay">🧡 ShopeePay</option>
+                        <option value="Cash Kampus">💵 Serah Terima Tunai Kampus</option>
+                    </select>
+                </div>
+
+                <div class="pt-2 flex justify-end space-x-2">
+                    <button type="button" onclick="closePaymentModal()" class="px-4 py-2 border rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-unesa-navy text-unesa-gold font-bold text-xs rounded-xl hover:bg-unesa-navyLight shadow">Konfirmasi & Bayar Lunas</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: LAPORAN -->
+    <div id="modalReport" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+        <div class="bg-white w-full max-w-md my-auto rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="bg-rose-600 p-3.5 sm:p-4 text-white flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-xs sm:text-sm flex items-center space-x-2">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>Form Laporan Kendala</span>
+                </h3>
+                <button onclick="closeReportModal()" class="text-white hover:text-slate-100 p-1"><i class="fa-solid fa-xmark text-base sm:text-lg"></i></button>
+            </div>
+            
+            <form onsubmit="handleSendReport(event)" class="p-4 sm:p-5 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Pilih ID Suruhan Bermasalah *</label>
+                    <select id="reportOrderIdSelect" required class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white"></select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Deskripsi Kendala *</label>
+                    <textarea id="reportAlasan" rows="3" required placeholder="Jelaskan kendala: Keterlambatan fatal, barang tertukar, atau komunikasi terputus..." class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Foto Bukti (Opsional)</label>
+                    <div id="photoBox-report" class="flex flex-wrap gap-2"></div>
+                </div>
+
+                <div class="pt-2 flex justify-end space-x-2">
+                    <button type="button" onclick="closeReportModal()" class="px-4 py-2 border rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-rose-600 text-white font-bold text-xs rounded-xl hover:bg-rose-700 shadow">Kirim Laporan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+
+    <div id="modalBecomeMitra" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+        <div class="bg-white w-full max-w-md my-auto rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+            <div class="bg-emerald-700 p-3.5 sm:p-4 text-white flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-xs sm:text-sm flex items-center space-x-2"><i class="fa-solid fa-handshake"></i><span>Daftar Jadi Mitra Suruh</span></h3>
+                <button onclick="closeBecomeMitraModal()" class="text-white/80 hover:text-white p-1"><i class="fa-solid fa-xmark text-base sm:text-lg"></i></button>
+            </div>
+            <form onsubmit="handleBecomeMitra(event)" class="p-4 sm:p-5 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
+                <p class="text-xs text-slate-500">Akun Anda sudah ada. Lengkapi data mahasiswa berikut untuk mulai menerima suruhan dan imbalan.</p>
+                <div><label class="block text-xs font-bold text-slate-700 uppercase mb-1">NIM *</label><input type="text" id="bmNIM" required inputmode="numeric" pattern="[0-9]{8,20}" placeholder="22030184005" class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2.5"></div>
+                <div><label class="block text-xs font-bold text-slate-700 uppercase mb-1">Fakultas *</label><select id="bmFakultas" required class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white"><option value="FT (Teknik)">FT (Teknik)</option><option value="FIP (Ilmu Pendidikan)">FIP (Ilmu Pendidikan)</option><option value="FMIPA (MIPA)">FMIPA (MIPA)</option><option value="FISH (Ilmu Sosial)">FISH (Ilmu Sosial)</option><option value="Kampus Magetan">Kampus Magetan</option></select></div>
+                <div><label class="block text-xs font-bold text-slate-700 uppercase mb-1">Area Kerja Utama *</label><select id="bmArea" required class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white font-bold text-unesa-navy"><option value="Ketintang">📍 Ketintang</option><option value="Lidah Wetan">📍 Lidah Wetan</option><option value="Magetan">📍 Magetan</option></select></div>
+                <div class="pt-2 flex justify-end space-x-2">
+                    <button type="button" onclick="closeBecomeMitraModal()" class="px-4 py-2 border rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow">Daftar Sebagai Mitra</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modalReview" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+        <div class="bg-white w-full max-w-md my-auto rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+            <div class="bg-amber-500 p-3.5 sm:p-4 text-white flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-xs sm:text-sm flex items-center space-x-2"><i class="fa-solid fa-star"></i><span>Beri Ulasan untuk Mitra</span></h3>
+                <button onclick="closeReviewModal()" class="text-white/80 hover:text-white p-1"><i class="fa-solid fa-xmark text-base sm:text-lg"></i></button>
+            </div>
+            <form onsubmit="handleSubmitReview(event)" class="p-4 sm:p-5 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
+                <input type="hidden" id="reviewOrderId">
+                <p id="reviewMitraName" class="text-xs font-bold text-slate-700"></p>
+                <div><label class="block text-xs font-bold text-slate-700 uppercase mb-1">Penilaian *</label>
+                    <select id="reviewRating" required class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white">
+                        <option value="5">⭐⭐⭐⭐⭐ Sangat baik</option><option value="4">⭐⭐⭐⭐ Baik</option><option value="3">⭐⭐⭐ Cukup</option><option value="2">⭐⭐ Kurang</option><option value="1">⭐ Buruk</option>
+                    </select></div>
+                <div><label class="block text-xs font-bold text-slate-700 uppercase mb-1">Komentar (opsional)</label><textarea id="reviewKomentar" rows="3" maxlength="255" placeholder="Ceritakan pengalaman Anda..." class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2.5"></textarea></div>
+                <div class="pt-2 flex justify-end space-x-2">
+                    <button type="button" onclick="closeReviewModal()" class="px-4 py-2 border rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-unesa-navy text-unesa-gold hover:bg-unesa-navyLight font-bold text-xs rounded-xl shadow">Kirim Ulasan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modalWithdraw" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+        <div class="bg-white w-full max-w-md my-auto rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+            <div class="bg-emerald-700 p-3.5 sm:p-4 text-white flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-xs sm:text-sm flex items-center space-x-2"><i class="fa-solid fa-wallet"></i><span>Cairkan Saldo</span></h3>
+                <button onclick="closeWithdrawModal()" class="text-white/80 hover:text-white p-1"><i class="fa-solid fa-xmark text-base sm:text-lg"></i></button>
+            </div>
+            <form onsubmit="handleWithdraw(event)" class="p-4 sm:p-5 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
+                <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs flex justify-between"><span class="text-slate-600">Saldo tersedia</span><strong id="wdAvailable" class="text-emerald-700">Rp 0</strong></div>
+                <div><label class="block text-xs font-bold text-slate-700 uppercase mb-1">E-Wallet Tujuan *</label><select id="wdMetode" required class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white"><option>DANA</option><option>OVO</option><option>GoPay</option><option>ShopeePay</option></select></div>
+                <div><label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nomor E-Wallet *</label><input type="tel" id="wdTujuan" required placeholder="081234567890" class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2.5"></div>
+                <div><label class="block text-xs font-bold text-slate-700 uppercase mb-1">Jumlah Penarikan (Rp) *</label><input type="number" id="wdJumlah" required step="1000" class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2.5 font-bold text-emerald-700"></div>
+                <div class="pt-2 flex justify-end space-x-2">
+                    <button type="button" onclick="closeWithdrawModal()" class="px-4 py-2 border rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow">Ajukan Penarikan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- MODAL: PEMILIH TITIK PETA -->
+    <div id="modalMapPicker" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white w-full max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[96vh]">
+            <div class="bg-unesa-navy text-white p-3.5 flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-xs sm:text-sm flex items-center space-x-2"><i class="fa-solid fa-map-location-dot text-unesa-gold"></i><span id="pickerTitle">Pilih titik</span></h3>
+                <button type="button" onclick="closeMapPicker()" class="text-slate-300 hover:text-white p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-3 sm:p-4 space-y-2.5 overflow-y-auto">
+                <div class="flex gap-2">
+                    <input id="pickerSearch" type="search" placeholder="Cari tempat, mis. Gedung A1 FT UNESA" onkeydown="if(event.key==='Enter'){event.preventDefault();searchPlace();}" class="flex-1 min-w-0 text-xs border border-slate-300 rounded-xl px-3 py-2.5">
+                    <button type="button" onclick="searchPlace()" class="px-4 bg-unesa-navy text-unesa-gold font-bold text-xs rounded-xl shrink-0">Cari</button>
+                </div>
+                <div id="pickerResults" class="hidden bg-white border border-slate-200 rounded-xl divide-y divide-slate-100 text-xs max-h-40 overflow-y-auto"></div>
+                <div id="pickerMapCanvas" class="w-full h-[46vh] sm:h-80 rounded-xl border border-slate-200 bg-slate-100"></div>
+                <p id="pickerFallback" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3">Peta tidak dapat dimuat (periksa koneksi). Tutup jendela ini lalu tempel link Google Maps pada kolom yang tersedia.</p>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="useMyLocation()" class="px-3 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl shrink-0"><i class="fa-solid fa-crosshairs mr-1"></i>Lokasi saya</button>
+                    <span id="pickerCoord" class="text-[11px] text-slate-500 font-mono flex-1 text-right truncate">Ketuk peta untuk menaruh pin</span>
+                </div>
+                <button type="button" id="pickerConfirm" onclick="confirmMapPicker()" disabled class="w-full py-2.5 bg-unesa-navy text-unesa-gold font-bold text-xs rounded-xl shadow disabled:opacity-50">Gunakan titik ini</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: DETAIL PESANAN, PETA & PELACAKAN -->
+    <div id="modalOrderDetail" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white w-full max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
+            <div class="bg-unesa-navy text-white p-3.5 flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-xs sm:text-sm flex items-center space-x-2"><i class="fa-solid fa-route text-unesa-gold"></i><span>Detail Suruhan</span></h3>
+                <button type="button" onclick="closeOrderDetail()" class="text-slate-300 hover:text-white p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="orderDetailBody" class="overflow-y-auto p-4 space-y-4 custom-scrollbar"></div>
+        </div>
+    </div>
+
+    <!-- MODAL: KONFIRMASI TAHAP TUGAS (MITRA) -->
+    <div id="modalProgress" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+        <div class="bg-white w-full max-w-md my-auto rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+            <div class="bg-emerald-700 p-3.5 sm:p-4 text-white flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-xs sm:text-sm flex items-center space-x-2"><i class="fa-solid fa-flag-checkered"></i><span>Perbarui Status Tugas</span></h3>
+                <button type="button" onclick="closeProgressModal()" class="text-white/80 hover:text-white p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onsubmit="handleProgressSubmit(event)" class="p-4 sm:p-5 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
+                <input type="hidden" id="progOrderId">
+                <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                    <span class="text-[10px] text-slate-500 font-bold uppercase block">Status baru yang dikirim ke pemesan</span>
+                    <p id="progStepLabel" class="text-sm font-extrabold text-emerald-700 mt-0.5"></p>
+                </div>
+                <div id="progKodeBox" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1.5">
+                    <label class="block text-xs font-bold text-amber-900 uppercase">Kode Serah Terima dari Pemesan *</label>
+                    <input type="text" id="progKode" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="6 digit" class="w-full text-center tracking-[0.4em] text-lg font-extrabold border border-amber-300 rounded-xl px-3 py-2.5 bg-white">
+                    <p class="text-[11px] text-amber-800">Minta kode ini dari pemesan <strong>setelah</strong> barang atau layanan benar-benar mereka terima. Tugas tidak bisa diselesaikan tanpa kode.</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Catatan (Opsional)</label>
+                    <textarea id="progCatatan" rows="2" maxlength="255" placeholder="Contoh: Antrean kantin agak panjang, estimasi 10 menit." class="w-full text-xs border border-slate-300 rounded-xl px-3.5 py-2.5"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Foto Bukti (Opsional)</label>
+                    <p class="text-[11px] text-slate-400 mb-2">Contoh: foto struk, barang yang sudah dibeli, atau serah terima. Terlihat oleh kedua pihak.</p>
+                    <div id="photoBox-progress" class="flex flex-wrap gap-2"></div>
+                </div>
+                <div class="pt-2 flex justify-end space-x-2">
+                    <button type="button" onclick="closeProgressModal()" class="px-4 py-2 border rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow">Kirim Status</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- MODAL: CHAT PEMESAN DAN MITRA -->
+    <div id="modalChat" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[92vh] sm:h-[82vh]">
+            <div class="bg-unesa-navy text-white p-3.5 flex items-center justify-between gap-2 shrink-0">
+                <div class="min-w-0">
+                    <h3 id="chatTitle" class="font-bold text-sm truncate">Chat</h3>
+                    <p id="chatSub" class="text-[11px] text-slate-300 truncate"></p>
+                </div>
+                <button type="button" onclick="closeChat()" class="text-slate-300 hover:text-white p-1 shrink-0" aria-label="Tutup chat"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="chatNotice" class="hidden text-[11px] px-3 py-2 bg-amber-50 text-amber-800 border-b border-amber-200"></div>
+            <div id="chatMessages" class="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50 custom-scrollbar"></div>
+            <div id="chatComposerWrap" class="shrink-0 border-t border-slate-200 bg-white">
+                <div id="chatQuick" class="flex gap-1.5 overflow-x-auto px-3 pt-2 no-scrollbar-mobile"></div>
+                <div id="chatAttachMenu" class="hidden grid grid-cols-4 gap-2 px-3 pt-2 text-center text-[10px] font-bold text-slate-700">
+                    <label class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 cursor-pointer"><i class="fa-solid fa-camera block text-lg text-unesa-navy mb-0.5"></i>Foto Kamera<input type="file" accept="image/*" capture="environment" class="hidden" onchange="chatPickMedia(this, 'foto')"></label>
+                    <label class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 cursor-pointer"><i class="fa-solid fa-image block text-lg text-unesa-navy mb-0.5"></i>Foto Galeri<input type="file" accept="image/*" class="hidden" onchange="chatPickMedia(this, 'foto')"></label>
+                    <label class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 cursor-pointer"><i class="fa-solid fa-video block text-lg text-emerald-700 mb-0.5"></i>Video Kamera<input type="file" accept="video/*" capture="environment" class="hidden" onchange="chatPickMedia(this, 'video')"></label>
+                    <label class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 cursor-pointer"><i class="fa-solid fa-film block text-lg text-emerald-700 mb-0.5"></i>Video Galeri<input type="file" accept="video/*" class="hidden" onchange="chatPickMedia(this, 'video')"></label>
+                </div>
+                <div class="p-2.5 flex items-end gap-2">
+                    <button type="button" onclick="toggleChatAttach()" class="w-10 h-10 shrink-0 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600" aria-label="Lampirkan foto atau video"><i class="fa-solid fa-paperclip"></i></button>
+                    <textarea id="chatInput" rows="1" maxlength="1000" placeholder="Tulis pesan..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatText();}" class="flex-1 min-w-0 text-sm border border-slate-300 rounded-xl px-3 py-2.5 resize-none max-h-24"></textarea>
+                    <button type="button" id="chatSendBtn" onclick="sendChatText()" class="w-10 h-10 shrink-0 rounded-xl bg-unesa-navy text-unesa-gold" aria-label="Kirim"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="bg-unesa-navy text-slate-300 border-t border-slate-800 py-6 mt-auto w-full">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs">
+            <div class="flex items-center space-x-3 text-center md:text-left">
+                <div class="w-8 h-8 rounded-lg bg-unesa-gold text-unesa-navy flex items-center justify-center font-bold text-base shrink-0 mx-auto md:mx-0">
+                    <i class="fa-solid fa-bolt"></i>
+                </div>
+                <div>
+                    <p class="font-bold text-white text-sm">UNESA <span class="text-unesa-gold">Suruh</span> © 2026</p>
+                    <p class="text-[11px] text-slate-400">Ekosistem Saling Bantu Mahasiswa UNESA (Ketintang • Lidah Wetan • Magetan)</p>
+                </div>
+            </div>
+            <div class="flex flex-wrap justify-center gap-4 text-slate-400 text-xs">
+                <span class="hover:text-white cursor-pointer" onclick="switchTab('landing')">Beranda Landing Page</span>
+                <span class="hover:text-white cursor-pointer" onclick="switchTab('reports-list')">Pusat Kendala</span>
+                <span class="guest-only hover:text-white cursor-pointer" onclick="openLoginModal()">Login Akun</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- External JavaScript -->
+        <!-- NOTIFIKASI (toast): sengaja di akhir body & z-index maksimum agar selalu di depan semua pop-up -->
+    <div id="toastContainer" class="fixed top-20 left-3 right-3 sm:left-auto sm:right-5 sm:w-96 flex flex-col space-y-2 pointer-events-none" style="position:fixed;z-index:2147483647"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="index.js"></script>
+</body>
+</html>
